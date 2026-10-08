@@ -1,0 +1,56 @@
+#cgpt-smooth-scroll {
+  position: fixed;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(32, 32, 35, 0.4); /* Faded by default */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: background 0.25s ease, border-color 0.25s ease, opacity 0.25s ease;
+  opacity: 0.65;
+}
+
+/* Sharp focus lighting up when mouse hovers over menu stack */
+#cgpt-smooth-scroll:hover {
+  background: rgba(32, 32, 35, 0.92);
+  border-color: rgba(255, 255, 255, 0.16);
+  opacity: 1;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+#cgpt-smooth-scroll button {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ececf1;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease, opacity 0.2s ease;
+}
+
+#cgpt-smooth-scroll button:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: scale(1.05);
+}
+
+#cgpt-smooth-scroll button:active {
+  transform: scale(0.95);
+}
+
+#cgpt-smooth-scroll .cgpt-divider {
+  height: 1px;
+  margin: 2px 4px;
+  background: rgba(255, 255, 255, 0.12);
+}

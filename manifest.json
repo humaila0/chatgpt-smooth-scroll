@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "ChatGPT Smooth Scroll",
+  "version": "1.0.0",
+  "description": "Adds smooth Up/Down navigation and a quick jump-to-bottom button to long ChatGPT conversations.",
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {}
+}
