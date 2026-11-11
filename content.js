@@ -9,12 +9,10 @@
   let isHolding = false;
   let scrollThrottleTimeout = null;
 
-  // 1. Efficient Scroll Element Caching Engine
   function isScrollable(el) {
     if (!el || el === document.body || el === document.documentElement) return false;
     const style = getComputedStyle(el);
-    const canScroll = (style.overflowY === "auto" || style.overflowY === "scroll" || style.overflowY === "overlay");
-    return canScroll && el.scrollHeight > el.clientHeight + 10;
+    return (style.overflowY === "auto" || style.overflowY === "scroll" || style.overflowY === "overlay") && el.scrollHeight > el.clientHeight + 10;
   }
 
   function findScroller() {
@@ -24,19 +22,25 @@
     const mainView = document.querySelector("main div.overflow-y-auto");
     if (mainView && isScrollable(mainView)) return mainView;
 
-    const candidates = [...document.querySelectorAll("div, main, section")].filter(isScrollable);
-    candidates.sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
+    const candidates = [...document.querySelectorAll("main div, section div")].filter(isScrollable);
     return candidates[0] || document.documentElement;
   }
 
+  // Safe wrapper that manages event listeners cleanly without leaks
   function getScroller() {
-    if (!activeScroller || !document.contains(activeScroller) || activeScroller === document.documentElement) {
-      activeScroller = findScroller();
+    const current = findScroller();
+    if (activeScroller !== current) {
+      if (activeScroller) {
+        activeScroller.removeEventListener("scroll", handleScrollThrottled);
+      }
+      activeScroller = current;
+      if (activeScroller && activeScroller !== document.documentElement) {
+        activeScroller.addEventListener("scroll", handleScrollThrottled, { passive: true });
+      }
     }
     return activeScroller;
   }
 
-  // 2. NEW FEATURE: Intelligent Smart Button Auto-Hide
   function updateButtonVisibility() {
     const scroller = getScroller();
     if (!scroller) return;
@@ -48,36 +52,32 @@
     const currentScroll = scroller.scrollTop;
     const maxScroll = scroller.scrollHeight - scroller.clientHeight;
 
-    // Fade top button away if already at top boundary
     if (currentScroll <= 40) {
-      btnTop.style.opacity = "0.2";
+      btnTop.classList.add("disabled");
       btnTop.style.pointerEvents = "none";
     } else {
-      btnTop.style.opacity = "1";
+      btnTop.classList.remove("disabled");
       btnTop.style.pointerEvents = "auto";
     }
 
-    // Fade bottom button away if already at bottom boundary
     if (currentScroll >= maxScroll - 40) {
-      btnBottom.style.opacity = "0.2";
+      btnBottom.classList.add("disabled");
       btnBottom.style.pointerEvents = "none";
     } else {
-      btnBottom.style.opacity = "1";
+      btnBottom.classList.remove("disabled");
       btnBottom.style.pointerEvents = "auto";
     }
   }
 
-  // Throttled scroll listener to keep updates high performance
   function handleScrollThrottled() {
     if (!scrollThrottleTimeout) {
       scrollThrottleTimeout = setTimeout(() => {
         updateButtonVisibility();
         scrollThrottleTimeout = null;
-      }, 100);
+      }, 150); // Increased slightly for optimal UI performance
     }
   }
 
-  // 3. Navigation Controls
   function scrollByAmount(amount) {
     const scroller = getScroller();
     if (scroller) {
@@ -91,7 +91,6 @@
     if (!scroller) return;
 
     scroller.style.overflowAnchor = "none";
-
     holdScrollInterval = setInterval(() => {
       requestAnimationFrame(() => {
         scroller.scrollTop += speed;
@@ -106,14 +105,12 @@
     }
   }
 
-  // Drag-simulation pathing to bypass active page lock mutations
   function simulateDragScroll(targetPosition) {
     const scroller = getScroller();
     if (!scroller) return;
 
     const originalAnchor = scroller.style.overflowAnchor;
     scroller.style.overflowAnchor = "none";
-    scroller.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
 
     let currentTick = 0;
     const totalTicks = 8;
@@ -124,12 +121,10 @@
       currentTick++;
       const progress = currentTick / totalTicks;
       scroller.scrollTop = startTop + distance * (1 - Math.pow(1 - progress, 3));
-      scroller.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, cancelable: true }));
 
       if (currentTick >= totalTicks) {
         clearInterval(dragInterval);
         scroller.scrollTop = targetPosition;
-        scroller.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true }));
         setTimeout(() => { 
           scroller.style.overflowAnchor = originalAnchor;
           updateButtonVisibility();
@@ -154,7 +149,7 @@
 
       clickTimeout = setTimeout(() => {
         isHolding = true;
-        startContinuousScroll(14 * directionMultiplier); // Speed tuned cleanly to 14px per frame
+        startContinuousScroll(14 * directionMultiplier);
       }, 220); 
     });
 
@@ -174,7 +169,10 @@
   }
 
   function createUI() {
-    if (document.getElementById("cgpt-smooth-scroll")) return;
+    if (document.getElementById("cgpt-smooth-scroll")) {
+      updateButtonVisibility();
+      return;
+    }
     const box = document.createElement("div");
     box.id = "cgpt-smooth-scroll";
     box.innerHTML = `
@@ -193,27 +191,27 @@
     document.getElementById("cgpt-bottom").addEventListener("click", scrollToBottom);
 
     box.addEventListener("wheel", e => e.stopPropagation(), { passive: true });
-
-    // Track scrolling changes on the active panel context
-    const scroller = getScroller();
-    if (scroller && scroller !== document.documentElement) {
-      scroller.removeEventListener("scroll", handleScrollThrottled);
-      scroller.addEventListener("scroll", handleScrollThrottled, { passive: true });
-    }
+    getScroller();
     updateButtonVisibility();
   }
 
-  createUI();
-
-  const observer = new MutationObserver(() => {
+  // Run initial build cleanly
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", createUI);
+  } else {
     createUI();
-    const scroller = getScroller();
-    if (scroller && scroller !== document.documentElement) {
-      scroller.removeEventListener("scroll", handleScrollThrottled);
-      scroller.addEventListener("scroll", handleScrollThrottled, { passive: true });
-    }
+  }
+
+  // Performance-focused low impact observer
+  let mutationTimeout = null;
+  const observer = new MutationObserver(() => {
+    if (mutationTimeout) return;
+    mutationTimeout = setTimeout(() => {
+      createUI();
+      mutationTimeout = null;
+    }, 500); // Only process changes at most once every half second
   });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.body, { childList: true, subtree: false });
 
   window.addEventListener("resize", () => { 
     activeScroller = null; 
